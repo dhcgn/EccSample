@@ -107,6 +107,7 @@ namespace Encryption
             var encryptedData = SymmetricEncryption.Encrypt(secret, plainData);
 
             var envelope = Envelope.Create(encryptedData, salt, isSelfUsage);
+            // Bug: EC reuse, for signing and encryption!
             var signedData = Brainpooler.SignData(privateKeyPair, envelope.EncryptedDataProto);
             envelope.Signature = signedData;
 

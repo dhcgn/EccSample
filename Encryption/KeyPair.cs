@@ -1,11 +1,13 @@
-﻿using System.Security.Cryptography;
+﻿using System;
+using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 using ProtoBuf;
 
 namespace Encryption
 {
     [ProtoContract]
-    public class KeyPair
+    public class KeyPair : ProtoBase<KeyPair>
     {
         /// <summary>
         /// Stellt den privaten Schlüssel D für den ECC-Algorithmus (Elliptic Curve Cryptography) dar.
@@ -32,6 +34,18 @@ namespace Encryption
 
         [JsonIgnore]
         public string ToJson => JsonConvert.SerializeObject(this);
+
+        public string ToArmor()
+        {
+            var base64 = Convert.ToBase64String(this.ToProtoBuf());
+            var typeName = this.InculdePrivateKey ? "PRIVATE" : "PUBLIC";
+            var start = $"-----BEGIN {typeName} KEY BLOCK-----";
+            var end = $"-----END {typeName} BLOCK-----";
+
+            var content = Regex.Replace(base64, $".{{{start.Length}}}", "$0\n");
+
+            return start+"\r\n" + content + "\r\n"+end;
+        }
 
         public static KeyPair FromJson(string json)
         {

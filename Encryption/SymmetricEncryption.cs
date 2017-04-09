@@ -19,6 +19,7 @@ namespace Encryption
 
         private static (byte[] hmac, byte[] aes) GreateComplexKey(byte[] key)
         {
+            // Bug: Key reuse!
             var hmacKey = key;
             var aesKey = key.Where((elem, idx) => idx % 2 == 0).ToArray();
 

@@ -8,7 +8,7 @@ using NUnit.Framework;
 namespace Encryption.Test
 {
     [TestFixture]
-    public class BrainpoolKeyGeneratorTest
+    public class BrainpoolerTest
     {
         [OneTimeSetUp]
         public void OneTimeSetUp()
@@ -39,7 +39,12 @@ namespace Encryption.Test
         {
             var keyPair = Brainpooler.CreateKeyPair(includePrivateParameters);
 
+            Console.Out.WriteLine($"----------- json ({keyPair.ToJson.Length})------------");
             Console.Out.WriteLine(keyPair.ToJson);
+            Console.Out.WriteLine($"----------- raw ({Convert.ToBase64String(keyPair.ToProtoBuf()).Length})------------");
+            Console.Out.WriteLine(Convert.ToBase64String(keyPair.ToProtoBuf()));
+            Console.Out.WriteLine($"----------- armor ({keyPair.ToArmor().Length})------------");
+            Console.Out.WriteLine(keyPair.ToArmor());
         }
 
         [Test]
