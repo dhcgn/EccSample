@@ -1,8 +1,52 @@
+using System.Linq;
 using System.Text;
 using NUnit.Framework;
 
 namespace Encryption.Test
 {
+    [TestFixture]
+    public class EnvelopeNoMetaTest
+    {
+        [Test]
+        public void Test_Simple()
+        {
+            var plainMsg = Encoding.UTF8.GetBytes("Hello World");
+            var aliceKeyPair = Brainpooler.CreateKeyPair(true);
+            var bobKeyPair = Brainpooler.CreateKeyPair(true);
+            
+            var env = EnvelopeNoMeta.Encrypt(aliceKeyPair, bobKeyPair.ExportPublicKey(), plainMsg);
+
+            var wire = env.ToProtoBuf();
+            var envelopeFromWire = EnvelopeNoMeta.FromProtoBuf(wire);
+
+            byte[] plainData;
+            bool result = envelopeFromWire.TryDecrypt(bobKeyPair, envelopeFromWire, out plainData);
+            Assert.That(result);
+
+            var decryptedMsg = Encoding.UTF8.GetString(plainData);
+            Assert.That(plainMsg, Is.EqualTo(decryptedMsg));
+        }
+
+        [Test]
+        public void Test_Simple_NoResult()
+        {
+            var plainMsg = Encoding.UTF8.GetBytes("Hello World");
+            var aliceKeyPair = Brainpooler.CreateKeyPair(true);
+            var bobKeyPair = Brainpooler.CreateKeyPair(true);
+            var eveKeyPair = Brainpooler.CreateKeyPair(true);
+            
+            var env = EnvelopeNoMeta.Encrypt(aliceKeyPair, eveKeyPair.ExportPublicKey(), plainMsg);
+
+            var wire = env.ToProtoBuf();
+            var envelopeFromWire = EnvelopeNoMeta.FromProtoBuf(wire);
+
+            byte[] plainData;
+            bool result = envelopeFromWire.TryDecrypt(bobKeyPair, envelopeFromWire, out plainData);
+            Assert.That(result, Is.False);
+            Assert.That(plainData,Is.Null);
+        }
+    }
+
     [TestFixture]
     public class EnvelopeTest
     {

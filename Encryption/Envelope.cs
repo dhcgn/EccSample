@@ -1,10 +1,67 @@
+using System;
 using System.Security.Cryptography;
 using ProtoBuf;
 
 namespace Encryption
 {
     [ProtoContract]
-    public class Envelope : ProtoBase<Envelope>
+    public class EnvelopeNoMeta : ProtoBase<EnvelopeNoMeta>, IEnvelopeNoMeta
+    {
+        [ProtoMember(1)]
+        public byte[] EncryptedDataProto { get; private set; }
+
+        [ProtoMember(2)]
+        public KeyPair PublicKeyPairSender { get; set; }
+
+        [ProtoMember(3)]
+        public byte[] KeyDerivationSalt { get; private set; }
+
+        public static EnvelopeNoMeta Encrypt(KeyPair privateKeyPair, KeyPair publicPublicKey, byte[] plainData)
+        {
+            var envelope = Envelope.Encrypt(privateKeyPair, publicPublicKey, plainData);
+
+            var derivePurposeOnlyKeyPair = Brainpooler.CreateKeyPair(true);
+            var mantle = Envelope.Encrypt(derivePurposeOnlyKeyPair, publicPublicKey, envelope.ToProtoBuf());
+
+            return EnvelopeNoMeta.Create(mantle);
+        }
+
+        private static EnvelopeNoMeta Create(Envelope mantle)
+        {
+            return new EnvelopeNoMeta
+            {
+                EncryptedDataProto = mantle.EncryptedDataProto,
+                PublicKeyPairSender = mantle.PublicKeyPairSender,
+                KeyDerivationSalt = mantle.KeyDerivationSalt,
+            };
+        }
+
+        public bool TryDecrypt(KeyPair privateKeyPair, IEnvelopeNoMeta envelopeNoMeta, out byte[] plainData)
+        {
+            try
+            {
+                var decryptedData = Envelope.DecryptedData(privateKeyPair, envelopeNoMeta, envelopeNoMeta.PublicKeyPairSender);
+                plainData =  Envelope.Decrypt(privateKeyPair, Envelope.FromProtoBuf(decryptedData));
+                return true;
+            }
+            catch
+            {
+                plainData = null;
+                return false;
+            }
+        }
+    }
+
+    public interface IEnvelopeNoMeta
+    {
+        byte[] EncryptedDataProto { get; }
+        KeyPair PublicKeyPairSender { get; set; }
+        byte[] KeyDerivationSalt { get;  }
+        byte[] ToProtoBuf();
+    }
+
+    [ProtoContract]
+    public class Envelope : ProtoBase<Envelope>, IEnvelopeNoMeta
     {
         [ProtoMember(1)]
         public byte[] EncryptedDataProto { get; private set; }
@@ -61,14 +118,26 @@ namespace Encryption
 
         public static byte[] Decrypt(KeyPair privateKeyPair, Envelope envelope)
         {
-            var isVerifed = Brainpooler.VerifyData(envelope.PublicKeyPairSender, envelope.EncryptedDataProto, envelope.Signature);
-            if (!isVerifed)
-                throw new CryptographicException("Signature couldn't be verified.");
+            VerifyData(envelope);
 
             var keyPairToDeriveSecret = envelope.IsForSelfUsage ? envelope.PublicKeyPairRecipient : envelope.PublicKeyPairSender;
+            return DecryptedData(privateKeyPair, envelope, keyPairToDeriveSecret);
+        }
+
+        internal static byte[] DecryptedData(KeyPair privateKeyPair, IEnvelopeNoMeta envelope, KeyPair keyPairToDeriveSecret)
+        {
             var secret = Brainpooler.DeriveSecret(privateKeyPair, keyPairToDeriveSecret, envelope.KeyDerivationSalt);
             var decryptedData = SymmetricEncryption.Decrypt(secret, EncryptedData.FromProtoBuf(envelope.EncryptedDataProto));
             return decryptedData;
         }
+
+        internal static void VerifyData(Envelope envelope)
+        {
+            var isVerifed = Brainpooler.VerifyData(envelope.PublicKeyPairSender, envelope.EncryptedDataProto, envelope.Signature);
+            if (!isVerifed)
+                throw new CryptographicException("Signature couldn't be verified.");
+        }
     }
+
+
 }
